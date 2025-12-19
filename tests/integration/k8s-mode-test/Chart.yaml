@@ -1,0 +1,6 @@
+apiVersion: v2
+name: k8s-mode-test
+description: Tests --exec-mode k8s by spawning Runner Pods from inside K3s
+type: application
+version: 0.1.0
+appVersion: "1.0"

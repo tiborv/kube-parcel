@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 350">
+  <defs>
+    <style>
+      .bg { fill: #fafafa; }
+      .platform { fill: #f0f0f0; stroke: #ccc; stroke-width: 2; rx: 12; }
+      .platform-k8s { fill: #e8f5e9; stroke: #a5d6a7; stroke-width: 2; rx: 12; }
+      .runner { fill: #fff3e0; stroke: #ff9800; stroke-width: 3; rx: 8; }
+      .k3s { fill: #e3f2fd; stroke: #64b5f6; stroke-width: 2; rx: 6; }
+      .cli { fill: #fffde7; stroke: #ffca28; stroke-width: 2; rx: 6; }
+      
+      .arrow { stroke: #ff9800; stroke-width: 3; fill: none; marker-end: url(#arr); }
+      
+      .title { font: bold 22px system-ui; fill: #333; text-anchor: middle; }
+      .sub { font: 13px system-ui; fill: #888; text-anchor: middle; }
+      .lbl { font: 600 14px system-ui; fill: #444; text-anchor: middle; }
+      .lbl-sm { font: 12px system-ui; fill: #666; text-anchor: middle; }
+      .arrow-lbl { font: bold 11px system-ui; fill: #e65100; text-anchor: middle; }
+      .platform-lbl { font: 500 13px system-ui; fill: #666; text-anchor: middle; }
+      
+      @media (prefers-color-scheme: dark) {
+        .bg { fill: #1a1a1a; }
+        .platform { fill: #252525; stroke: #444; }
+        .platform-k8s { fill: #1e3a1e; stroke: #4caf50; }
+        .runner { fill: #3d2a10; stroke: #ff9800; }
+        .k3s { fill: #1a2a3d; stroke: #64b5f6; }
+        .cli { fill: #3d3a1a; stroke: #ffca28; }
+        .title { fill: #fff; }
+        .sub { fill: #999; }
+        .lbl { fill: #eee; }
+        .lbl-sm { fill: #bbb; }
+        .arrow-lbl { fill: #ffb74d; }
+        .platform-lbl { fill: #999; }
+        .arrow { stroke: #ffb74d; }
+      }
+    </style>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#ff9800"/>
+    </marker>
+  </defs>
+
+  <rect width="1000" height="350" class="bg"/>
+  
+  <!-- Divider -->
+  <line x1="500" y1="20" x2="500" y2="330" stroke="#ddd" stroke-width="2" stroke-dasharray="6,4"/>
+
+  <!-- ===== LEFT: Docker Mode ===== -->
+  <text x="250" y="35" class="title">--exec-mode docker</text>
+  
+  <!-- Platform -->
+  <rect x="30" y="260" width="440" height="55" class="platform"/>
+  <text x="250" y="293" class="platform-lbl">Docker Daemon</text>
+
+  <!-- CLI -->
+  <rect x="50" y="130" width="120" height="55" class="cli"/>
+  <text x="110" y="163" class="lbl">kube-parcel</text>
+
+  <!-- Arrow -->
+  <path d="M170,157 L230,157" class="arrow"/>
+  <text x="200" y="148" class="arrow-lbl">stream</text>
+
+  <!-- Runner -->
+  <rect x="240" y="80" width="210" height="160" class="runner"/>
+  <text x="345" y="108" class="lbl">Runner Container</text>
+  
+  <!-- Runner process -->
+  <rect x="255" y="125" width="85" height="50" class="platform"/>
+  <text x="297" y="155" class="lbl-sm">runner</text>
+  
+  <!-- K3s process -->
+  <rect x="350" y="125" width="85" height="50" class="k3s"/>
+  <text x="392" y="155" class="lbl-sm">K3s</text>
+  
+  <text x="345" y="205" class="lbl-sm" style="fill:#999;font-style:italic">→ tests your charts</text>
+
+  <!-- ===== RIGHT: K8s Mode ===== -->
+  <text x="750" y="35" class="title">--exec-mode k8s</text>
+  
+  <!-- Platform -->
+  <rect x="530" y="260" width="440" height="55" class="platform-k8s"/>
+  <text x="750" y="293" class="platform-lbl">Kubernetes Cluster</text>
+
+  <!-- CI Pod containing CLI -->
+  <rect x="545" y="105" width="135" height="110" class="platform" style="fill:#e8f5e9;stroke:#81c784;"/>
+  <text x="612" y="125" class="lbl-sm" style="fill:#4caf50">CI Pod</text>
+  <rect x="555" y="140" width="115" height="55" class="cli"/>
+  <text x="612" y="173" class="lbl">kube-parcel</text>
+
+  <!-- Arrow -->
+  <path d="M680,167 L720,167" class="arrow"/>
+  <text x="700" y="158" class="arrow-lbl">stream</text>
+
+  <!-- Stacked pods (behind) to show parallelism -->
+  <rect x="755" y="90" width="200" height="145" class="runner" style="opacity:0.3"/>
+  <rect x="765" y="100" width="200" height="145" class="runner" style="opacity:0.5"/>
+  
+  <!-- Runner Pod (front) -->
+  <rect x="730" y="75" width="200" height="150" class="runner"/>
+  <text x="830" y="100" class="lbl">Runner Pod</text>
+  
+  <!-- Runner process -->
+  <rect x="745" y="115" width="80" height="45" class="platform"/>
+  <text x="785" y="143" class="lbl-sm">runner</text>
+  
+  <!-- K3s process -->
+  <rect x="835" y="115" width="80" height="45" class="k3s"/>
+  <text x="875" y="143" class="lbl-sm">K3s</text>
+  
+  <text x="830" y="195" class="lbl-sm" style="fill:#999;font-style:italic">→ tests your charts</text>
+
+</svg>

@@ -1,0 +1,74 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@tar.bzl", "mtree_mutate", "mtree_spec", "tar")
+
+go_library(
+    name = "client_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/tiborv/kube-parcel/cmd/client",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/client",
+        "//pkg/config",
+        "//pkg/shared",
+        "@com_github_spf13_cobra//:cobra",
+        "@com_github_spf13_viper//:viper",
+    ],
+)
+
+go_binary(
+    name = "client",
+    embed = [":client_lib"],
+    pure = "on",  # Static linking for Alpine/musl compatibility
+    visibility = ["//visibility:public"],
+)
+
+# Named binary for container image - will be 'kube-parcel' in /usr/local/bin
+go_binary(
+    name = "kube-parcel",
+    embed = [":client_lib"],
+    pure = "on",
+    visibility = ["//visibility:public"],
+)
+
+# Client binary layer - 'kube-parcel' in /usr/local/bin
+mtree_spec(
+    name = "client_mtree",
+    srcs = [":kube-parcel"],
+    include_runfiles = False,
+)
+
+mtree_mutate(
+    name = "client_mtree_mutated",
+    mtree = ":client_mtree",
+    package_dir = "/usr/local/bin",
+    strip_prefix = "cmd/client/kube-parcel_",
+)
+
+tar(
+    name = "client_layer",
+    srcs = [":kube-parcel"],
+    mtree = ":client_mtree_mutated",
+)
+
+# Client image based on distroless/static for minimal footprint
+oci_image(
+    name = "image",
+    base = "@distroless_static",
+    entrypoint = ["/usr/local/bin/kube-parcel"],
+    tars = [":client_layer"],
+    visibility = ["//visibility:public"],
+)
+
+oci_load(
+    name = "load",
+    image = ":image",
+    repo_tags = ["kube-parcel-cli:latest"],
+)
+
+oci_push(
+    name = "push",
+    image = ":image",
+    repository = "ghcr.io/tiborv/kube-parcel-cli",
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,23 @@
+"Config settings for kube-parcel execution modes"
+
+package(default_visibility = ["//visibility:public"])
+
+# Exec mode config settings
+# Use with: bazel test --config=docker or --config=k8s
+
+config_setting(
+    name = "exec_mode_k8s",
+    values = {"define": "kube_parcel_exec_mode=k8s"},
+)
+
+config_setting(
+    name = "exec_mode_docker",
+    values = {"define": "kube_parcel_exec_mode=docker"},
+)
+
+# Default exec mode (docker)
+# This matches when no --define is set
+config_setting(
+    name = "exec_mode_default",
+    values = {},
+)

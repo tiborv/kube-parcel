@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>kube-parcel | Ephemeral K3s Testing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #151932;
+            --bg-tertiary: #1e2342;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --border: #374151;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #1a1f3a 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .brand h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .brand p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .mini-state {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--bg-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .state-tag {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+
+        .state-value {
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .dashboard-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            width: 100%;
+        }
+
+        .card-steps {
+            flex: 0 0 280px;
+            min-width: 250px;
+        }
+
+        .card-charts {
+            flex: 1 1 400px;
+            min-width: 350px;
+        }
+
+        .card-images {
+            flex: 1 1 400px;
+            min-width: 350px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        /* Timeline Styles */
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            position: relative;
+            padding-left: 1rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 1.45rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border);
+            z-index: 0;
+        }
+
+        .step {
+            display: flex;
+            gap: 1.5rem;
+            align-items: flex-start;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+            }
+        }
+
+        .step.active .step-icon {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+            background: var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        .step.completed .step-icon {
+            border-color: var(--success);
+            background: var(--success);
+            color: white;
+        }
+
+        .step.failed .step-icon {
+            border-color: var(--error);
+            background: var(--error);
+            color: white;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+        }
+
+        .step.active .step-title,
+        .step.completed .step-title {
+            color: var(--text-primary);
+        }
+
+        .step-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+
+        /* Chart Table */
+        .chart-table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 1rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .chart-name {
+            font-weight: 600;
+            color: var(--accent-hover);
+        }
+
+        .phase-badge {
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .phase-pending {
+            background: rgba(156, 163, 175, 0.2);
+            color: #9ca3af;
+        }
+
+        .phase-installing {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .phase-deployed {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .phase-testing {
+            background: rgba(99, 102, 241, 0.2);
+            color: #6366f1;
+        }
+
+        .phase-succeeded {
+            background: rgba(16, 185, 129, 0.3);
+            color: #34d399;
+        }
+
+        .phase-failed {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .chart-message {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        /* Logs Section */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        .logs-container {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 0;
+            border: 1px solid var(--border);
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .logs-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .logs {
+            flex: 1;
+            background: #050714;
+            padding: 1.5rem;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .log-entry {
+            margin-bottom: 0.4rem;
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .log-timestamp {
+            color: #4b5563;
+            flex-shrink: 0;
+            font-size: 0.75rem;
+        }
+
+        .log-source {
+            font-weight: 700;
+            flex-shrink: 0;
+            min-width: 65px;
+            text-align: right;
+        }
+
+        .log-source-server {
+            color: #6366f1;
+        }
+
+        .log-source-k3s {
+            color: #10b981;
+        }
+
+        .log-source-helm {
+            color: #f59e0b;
+        }
+
+        .log-message {
+            color: #d1d5db;
+            word-break: break-all;
+        }
+
+        .log-level-error .log-message {
+            color: #fda4af;
+        }
+
+        .log-level-warning .log-message {
+            color: #fde68a;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--error);
+        }
+
+        .status-dot.connected {
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        /* Stats Row */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 1.25rem;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .stat-val {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            padding-bottom: 2rem;
+        }
+
+        .resources-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+        }
+
+        .resource-chip {
+            font-size: 0.7rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .resource-kind {
+            color: var(--text-secondary);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.6rem;
+        }
+
+        .resource-status {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+        }
+
+        .resource-status.running,
+        .resource-status.ready,
+        .resource-status.active,
+        .resource-status.succeeded {
+            background: var(--success);
+            box-shadow: 0 0 4px var(--success);
+        }
+
+        .resource-chip.is-test {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .resource-chip.is-test .resource-kind {
+            color: var(--accent);
+        }
+
+        /* Collapsible Namespace Groups */
+        .ns-group {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+        }
+
+        .ns-header {
+            background: var(--bg-tertiary);
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .ns-header:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .ns-header .ns-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .ns-header .ns-count {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .ns-header .ns-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.2s;
+        }
+
+        .ns-group.collapsed .ns-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .ns-content {
+            padding: 0.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            background: var(--bg-secondary);
+        }
+
+        .ns-group.collapsed .ns-content {
+            display: none;
+        }
+
+        .ns-resource {
+            background: var(--bg-primary);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .ns-resource .kind-badge {
+            background: var(--bg-tertiary);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .ns-resource .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+        }
+
+        .ns-resource .status-dot.running,
+        .ns-resource .status-dot.active,
+        .ns-resource .status-dot.bound,
+        .ns-resource .status-dot.ready,
+        .ns-resource .status-dot.succeeded {
+            background: var(--success);
+            box-shadow: 0 0 4px var(--success);
+        }
+
+        .ns-resource .status-dot.pending,
+        .ns-resource .status-dot.containercreating {
+            background: var(--warning);
+            box-shadow: 0 0 4px var(--warning);
+        }
+
+        .ns-resource .status-dot.error,
+        .ns-resource .status-dot.failed,
+        .ns-resource .status-dot.crashloopbackoff {
+            background: var(--error);
+            box-shadow: 0 0 4px var(--error);
+        }
+
+        .chart-table-container,
+        .table-container {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="brand">
+                <h1>kube-parcel</h1>
+                <p>Ephemeral K3s Testing</p>
+            </div>
+            <div class="mini-state">
+                <span class="state-tag">State Machine</span>
+                <span class="state-value" id="current-state">IDLE</span>
+            </div>
+        </header>
+
+        <div class="dashboard">
+            <div class="card card-steps">
+                <div class="card-header"
+                    style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <span>📋 Steps</span>
+                    <div style="display: flex; gap: 1.5rem; font-size: 0.85rem;">
+                        <div><span style="color: var(--text-secondary);">Uptime:</span> <span id="uptime-val"
+                                style="font-weight: 700;">0s</span></div>
+                        <div><span style="color: var(--text-secondary);">State:</span> <span id="state-val"
+                                style="font-weight: 700;">IDLE</span></div>
+                    </div>
+                </div>
+                <div class="timeline">
+                    <div class="step" id="step-connect">
+                        <div class="step-icon">🔌</div>
+                        <div class="step-content">
+                            <div class="step-title">Connection</div>
+                            <div class="step-desc">Awaiting parcel stream</div>
+                        </div>
+                    </div>
+                    <div class="step" id="step-extract">
+                        <div class="step-icon">📦</div>
+                        <div class="step-content">
+                            <div class="step-title">Extracting Package</div>
+                            <div class="step-desc">Unpacking charts and images</div>
+                        </div>
+                    </div>
+                    <div class="step" id="step-k3s">
+                        <div class="step-icon">☸️</div>
+                        <div class="step-content">
+                            <div class="step-title">Setting up K3s</div>
+                            <div class="step-desc">Igniting cluster & API readiness</div>
+                        </div>
+                    </div>
+                    <div class="step" id="step-images">
+                        <div class="step-icon">🖼️</div>
+                        <div class="step-content">
+                            <div class="step-title">Loading Images</div>
+                            <div class="step-desc">Importing to containerd</div>
+                        </div>
+                    </div>
+                    <div class="step" id="step-helm">
+                        <div class="step-icon">🪖</div>
+                        <div class="step-content">
+                            <div class="step-title">Loading Helm Charts</div>
+                            <div class="step-desc">Installing releases with --wait</div>
+                        </div>
+                    </div>
+                    <div class="step" id="step-test">
+                        <div class="step-icon">🧪</div>
+                        <div class="step-content">
+                            <div class="step-title">Running Tests</div>
+                            <div class="step-desc">Executing helm test jobs</div>
+                        </div>
+                    </div>
+                    <div class="step" id="step-result">
+                        <div class="step-icon">📊</div>
+                        <div class="step-content">
+                            <div class="step-title">Overall Result</div>
+                            <div class="step-desc" id="result-desc">Waiting for completion</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Helm + Images Row -->
+            <div class="dashboard-row">
+                <div class="card card-charts">
+                    <div class="card-header">🪖 Helm</div>
+                    <div class="chart-table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Chart Name</th>
+                                    <th>Phase</th>
+                                    <th>Message</th>
+                                </tr>
+                            </thead>
+                            <tbody id="charts-table-body">
+                                <tr>
+                                    <td colspan="3"
+                                        style="text-align: center; color: var(--text-secondary); padding: 2rem;">No
+                                        charts
+                                        uploaded yet</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card card-images">
+                    <div class="card-header">🖼️ Images</div>
+                    <div class="table-container" style="flex: 1; overflow-y: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Image</th>
+                                </tr>
+                            </thead>
+                            <tbody id="images-body">
+                                <tr>
+                                    <td class="loading-cell">Waiting for images...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cluster Card with Collapsible Namespaces -->
+            <div class="card card-cluster" style="flex: 1 1 100%; width: 100%;">
+                <div class="card-header">☸️ Cluster Resources</div>
+                <div id="cluster-resources-container" style="max-height: 400px; overflow-y: auto;">
+                    <div id="cluster-ns-groups">
+                        <div class="loading-cell"
+                            style="padding: 2rem; text-align: center; color: var(--text-secondary);">Waiting for data...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="logs-container">
+            <div class="logs-header">
+                <div class="card-header" style="margin-bottom: 0;">📝 Application Logs</div>
+                <div class="connection-status">
+                    <div class="status-dot" id="ws-status"></div>
+                    <span id="ws-text">Connecting...</span>
+                </div>
+            </div>
+            <div class="logs" id="logs"></div>
+        </div>
+
+        <footer>
+            <p>kube-parcel</p>
+        </footer>
+    </div>
+
+    <script>
+        let ws = null;
+        let currentState = 'IDLE';
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/logs`;
+
+            ws = new WebSocket(wsUrl);
+            ws.onopen = () => updateWSStatus(true);
+            ws.onmessage = (event) => addLogEntry(JSON.parse(event.data));
+            ws.onerror = () => updateWSStatus(false);
+            ws.onclose = () => {
+                updateWSStatus(false);
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function updateWSStatus(connected) {
+            const dot = document.getElementById('ws-status');
+            const text = document.getElementById('ws-text');
+            if (connected) {
+                dot.classList.add('connected');
+                text.textContent = 'Connected';
+            } else {
+                dot.classList.remove('connected');
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        function addLogEntry(logMsg) {
+            const logsDiv = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${logMsg.level === 'error' ? 'log-level-error' : logMsg.level === 'warning' ? 'log-level-warning' : ''}`;
+
+            const timestamp = new Date(logMsg.timestamp).toLocaleTimeString();
+            entry.innerHTML = `
+                <span class="log-timestamp">${timestamp}</span>
+                <span class="log-source log-source-${logMsg.source}">[${logMsg.source.toUpperCase()}]</span>
+                <span class="log-message">${logMsg.message}</span>
+            `;
+
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            while (logsDiv.children.length > 1000) logsDiv.removeChild(logsDiv.firstChild);
+        }
+
+        function fetchStatus() {
+            fetch('/parcel/status')
+                .then(res => res.json())
+                .then(data => updateUI(data))
+                .catch(err => console.error('Status fetch failed:', err));
+        }
+
+        function updateUI(status) {
+            // State in header
+            document.getElementById('current-state').textContent = status.state;
+
+            // Stats
+            document.getElementById('uptime-val').textContent = `${status.uptime}s`;
+            document.getElementById('state-val').textContent = status.state;
+            document.getElementById('state-val').style.color = status.state === 'READY' ? 'var(--success)' : 'var(--accent)';
+
+            // Process Timeline
+            updateTimeline(status);
+
+            // Chart Table
+            updateChartTable(status.charts);
+
+            // Images Table
+            updateImagesTable(status.images);
+
+            // Cluster Table
+            updateClusterTable(status.cluster_resources);
+        }
+
+        function updateClusterTable(resources) {
+            const container = document.getElementById('cluster-ns-groups');
+            if (!resources || resources.length === 0) {
+                container.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">No resources found</div>';
+                return;
+            }
+
+            // Group by namespace
+            const groups = {};
+            resources.forEach(r => {
+                const ns = r.namespace || '(cluster-scoped)';
+                if (!groups[ns]) groups[ns] = [];
+                groups[ns].push(r);
+            });
+
+            // Track collapsed state
+            const wasCollapsed = {};
+            container.querySelectorAll('.ns-group').forEach(el => {
+                const ns = el.dataset.ns;
+                if (ns && el.classList.contains('collapsed')) {
+                    wasCollapsed[ns] = true;
+                }
+            });
+
+            container.innerHTML = '';
+
+            // Sort namespaces (cluster-scoped first, then default, then others)
+            const sortedNs = Object.keys(groups).sort((a, b) => {
+                if (a === '(cluster-scoped)') return -1;
+                if (b === '(cluster-scoped)') return 1;
+                if (a === 'default') return -1;
+                if (b === 'default') return 1;
+                return a.localeCompare(b);
+            });
+
+            sortedNs.forEach(ns => {
+                const items = groups[ns];
+                items.sort((a, b) => {
+                    if (a.kind !== b.kind) return a.kind.localeCompare(b.kind);
+                    return a.name.localeCompare(b.name);
+                });
+
+                const group = document.createElement('div');
+                group.className = 'ns-group' + (wasCollapsed[ns] ? ' collapsed' : '');
+                group.dataset.ns = ns;
+
+                group.innerHTML = `
+                    <div class="ns-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        <div>
+                            <span class="ns-name">${ns}</span>
+                            <span class="ns-count">(${items.length} resources)</span>
+                        </div>
+                        <span class="ns-toggle">▼</span>
+                    </div>
+                    <div class="ns-content">
+                        ${items.map(r => {
+                    const statusClass = (r.status || '').toLowerCase().replace(/[^a-z]/g, '');
+                    return `
+                                <div class="ns-resource">
+                                    <span class="status-dot ${statusClass}" title="${r.status || 'Unknown'}"></span>
+                                    <span class="kind-badge">${r.kind}</span>
+                                    <span>${r.name}</span>
+                                </div>
+                            `;
+                }).join('')}
+                    </div>
+                `;
+
+                container.appendChild(group);
+            });
+        }
+
+        function updateImagesTable(images) {
+            const body = document.getElementById('images-body');
+            if (!images || images.length === 0) {
+                body.innerHTML = '<tr><td colspan="1" style="text-align: center; color: var(--text-secondary)">No images loaded</td></tr>';
+                return;
+            }
+            body.innerHTML = '';
+            images.forEach(img => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td style="font-family: monospace;">${img}</td>`;
+                body.appendChild(row);
+            });
+        }
+
+        function updateTimeline(status) {
+            const state = status.state;
+            const steps = {
+                'connect': document.getElementById('step-connect'),
+                'extract': document.getElementById('step-extract'),
+                'k3s': document.getElementById('step-k3s'),
+                'images': document.getElementById('step-images'),
+                'helm': document.getElementById('step-helm'),
+                'test': document.getElementById('step-test'),
+                'result': document.getElementById('step-result')
+            };
+
+
+            // Reset
+            Object.values(steps).forEach(s => s.classList.remove('active', 'completed'));
+
+            if (state === 'IDLE') {
+                steps.connect.classList.add('active');
+            } else if (state === 'TRANSFERRING') {
+                steps.connect.classList.add('completed');
+                steps.extract.classList.add('active');
+            } else if (state === 'STARTING') {
+                steps.connect.classList.add('completed');
+                steps.extract.classList.add('completed');
+                steps.k3s.classList.add('active');
+            } else if (state === 'READY') {
+                steps.connect.classList.add('completed');
+                steps.extract.classList.add('completed');
+                steps.k3s.classList.add('completed');
+
+                // Logic to see if we are loading images, charts, or testing
+                const chartEntries = Object.values(status.charts || {});
+                const hasInstalling = chartEntries.some(c => c.phase === 'Installing');
+                const hasTesting = chartEntries.some(c => c.phase === 'Testing');
+                const allDeployed = chartEntries.length > 0 && chartEntries.every(c => c.phase === 'Deployed' || c.phase === 'Succeeded' || c.phase === 'Failed');
+                const allSucceeded = chartEntries.length > 0 && chartEntries.every(c => c.phase === 'Succeeded' || c.phase === 'Failed');
+
+                if (status.images_count > 0 && !hasInstalling && !hasTesting && !allDeployed) {
+                    steps.images.classList.add('active');
+                } else if (hasInstalling || (allDeployed && !hasTesting && !allSucceeded)) {
+                    steps.images.classList.add('completed');
+                    steps.helm.classList.add('active');
+                } else if (hasTesting || allSucceeded) {
+                    steps.images.classList.add('completed');
+                    steps.helm.classList.add('completed');
+                    steps.test.classList.add('active');
+                    if (allSucceeded) {
+                        steps.test.classList.add('completed');
+                        // Check if any failed
+                        const anyFailed = chartEntries.some(c => c.phase === 'Failed');
+                        if (anyFailed) {
+                            steps.result.classList.add('failed');
+                            document.getElementById('result-desc').textContent = 'Tests failed';
+                            steps.result.querySelector('.step-icon').textContent = '❌';
+                        } else {
+                            steps.result.classList.add('completed');
+                            document.getElementById('result-desc').textContent = 'All tests passed';
+                            steps.result.querySelector('.step-icon').textContent = '✅';
+                        }
+                    }
+                } else {
+                    // Just ready but nothing started yet
+                    steps.helm.classList.add('active');
+                }
+            }
+        }
+
+        function updateChartTable(charts) {
+            const body = document.getElementById('charts-table-body');
+            if (!charts || Object.keys(charts).length === 0) return;
+
+            body.innerHTML = '';
+            for (const [name, info] of Object.entries(charts)) {
+                const row = document.createElement('tr');
+                const phaseClass = `phase-${info.phase.toLowerCase()}`;
+
+                row.innerHTML = `
+                    <td class="chart-name">${name}</td>
+                    <td><span class="phase-badge ${phaseClass}">${info.phase}</span></td>
+                    <td class="chart-message">${info.message}</td>
+                `;
+                body.appendChild(row);
+            }
+        }
+
+        connectWebSocket();
+        setInterval(fetchStatus, 1500);
+        fetchStatus();
+    </script>
+</body>
+
+</html>

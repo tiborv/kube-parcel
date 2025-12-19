@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Values.appName }}-test-config
+  annotations:
+    "helm.sh/hook": test
+spec:
+  restartPolicy: Never
+  containers:
+    - name: test
+      image: busybox:latest
+      imagePullPolicy: IfNotPresent
+      envFrom:
+        - configMapRef:
+            name: {{ .Values.appName }}-config
+      command:
+        - sh
+        - -c
+        - |
+          echo "Testing ConfigMap injection..."
+          
+          # Check DATABASE_URL is set
+          if [ -z "$DATABASE_URL" ]; then
+            echo "❌ DATABASE_URL not set"
+            exit 1
+          fi
+          echo "✅ DATABASE_URL = $DATABASE_URL"
+          
+          # Check LOG_LEVEL is set
+          if [ -z "$LOG_LEVEL" ]; then
+            echo "❌ LOG_LEVEL not set"
+            exit 1
+          fi
+          echo "✅ LOG_LEVEL = $LOG_LEVEL"
+          
+          # Check FEATURE_FLAGS contains expected value
+          if echo "$FEATURE_FLAGS" | grep -q "new-ui"; then
+            echo "✅ FEATURE_FLAGS contains 'new-ui'"
+          else
+            echo "❌ FEATURE_FLAGS missing 'new-ui'"
+            exit 1
+          fi
+          
+          echo "All config tests passed!"

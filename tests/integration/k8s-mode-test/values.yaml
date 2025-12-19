@@ -1,0 +1,4 @@
+runner:
+  image: test-runner
+  tag: latest
+  pullPolicy: Never

@@ -1,0 +1,26 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "runner",
+    srcs = [
+        "handler.go",
+        "helm.go",
+        "k3s.go",
+        "state.go",
+        "tar.go",
+    ],
+    importpath = "github.com/tiborv/kube-parcel/pkg/runner",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/config",
+        "//pkg/shared",
+        "@com_github_gorilla_websocket//:websocket",
+    ],
+)
+
+go_test(
+    name = "runner_test",
+    srcs = ["state_test.go"],
+    embed = [":runner"],
+    deps = ["//pkg/shared"],
+)

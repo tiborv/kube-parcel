@@ -1,0 +1,80 @@
+# Example: kube-parcel client pod with RBAC
+# Apply with: kubectl apply -f examples/client-pod-rbac.yaml
+#
+# This creates a ServiceAccount, Role, RoleBinding, and Pod
+# that runs the kube-parcel client in Kubernetes mode.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kube-parcel-testing
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-parcel-client
+  namespace: kube-parcel-testing
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kube-parcel-client
+  namespace: kube-parcel-testing
+rules:
+  # Required for spawning runner pods
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  # Required for streaming logs
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  # Required for port-forwarding to runner
+  - apiGroups: [""]
+    resources: ["pods/portforward"]
+    verbs: ["create"]
+  # Required for exec (optional, for debugging)
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kube-parcel-client
+  namespace: kube-parcel-testing
+subjects:
+  - kind: ServiceAccount
+    name: kube-parcel-client
+    namespace: kube-parcel-testing
+roleRef:
+  kind: Role
+  name: kube-parcel-client
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-parcel-test
+  namespace: kube-parcel-testing
+spec:
+  serviceAccountName: kube-parcel-client
+  containers:
+    - name: client
+      image: ghcr.io/tiborv/kube-parcel-cli:latest
+      command:
+        - kube-parcel
+        - start
+        - --exec-mode
+        - k8s
+        - --runner-image
+        - ghcr.io/tiborv/kube-parcel:latest
+        - /charts/my-chart
+      volumeMounts:
+        - name: charts
+          mountPath: /charts
+  volumes:
+    - name: charts
+      # Mount your Helm chart via ConfigMap, PVC, or git-sync
+      emptyDir: {}
+  restartPolicy: Never

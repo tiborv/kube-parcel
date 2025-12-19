@@ -1,0 +1,92 @@
+"Module providing kube-parcel - Ephemeral K3s Testing Framework"
+
+module(
+    name = "kube_parcel",
+    version = "0.0.1",
+)
+
+bazel_dep(name = "rules_go", version = "0.58.3")
+bazel_dep(name = "gazelle", version = "0.42.0")
+bazel_dep(name = "rules_proto", version = "7.1.0")
+bazel_dep(name = "rules_oci", version = "2.2.0")
+bazel_dep(name = "tar.bzl", version = "0.7.0")
+bazel_dep(name = "protobuf", version = "33.0")
+bazel_dep(name = "rules_shell", version = "0.6.1")
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.0")
+
+# Helm binary for airgap support (auto-extracted)
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_archive(
+    name = "helm_binary",
+    build_file_content = """
+exports_files(["helm"])
+""",
+    integrity = "sha256-KUVLw1H0Qz5mwA9dN4QWJ8u8wC5McKbXllKdNVI3Zxw=",
+    strip_prefix = "linux-amd64",
+    url = "https://get.helm.sh/helm-v4.0.4-linux-amd64.tar.gz",
+)
+
+http_file(
+    name = "k3s_airgap_images",
+    downloaded_file_path = "k3s-airgap-images.tar.gz",
+    sha256 = "30d607734c9410404cdf4d7194ff68e5cb0ee23ee5a230f65d24ada01c1dcd06",  # Obtained from actual download
+    url = "https://github.com/k3s-io/k3s/releases/download/v1.32.0%2Bk3s1/k3s-airgap-images-amd64.tar.gz",
+)
+
+oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
+oci.pull(
+    name = "k3s_base",
+    digest = "sha256:b7a31cc883051a89334a7865a7e75ef0bfcec5a5d13aba228b37388160a0be75",  # v1.32.0-k3s1
+    image = "docker.io/rancher/k3s",
+    platforms = ["linux/amd64"],
+)
+oci.pull(
+    name = "busybox_base",
+    digest = "sha256:d80cd694d3e9467884fcb94b8ca1e20437d8a501096cdf367a5a1918a34fc2fd",  # latest as of 2024-12
+    image = "docker.io/library/busybox",
+    platforms = ["linux/amd64"],
+)
+oci.pull(
+    name = "registry_image",
+    image = "docker.io/library/registry",
+    platforms = ["linux/amd64"],
+    tag = "3",
+)
+oci.pull(
+    name = "distroless_static",
+    digest = "sha256:69830f29ed7545c762777507426a412f97dad3d8d32bae3e74ad3fb6160917ea",  # latest as of 2024-12
+    image = "gcr.io/distroless/static",
+    platforms = ["linux/amd64"],
+)
+oci.pull(
+    name = "busybox_rancher",
+    image = "docker.io/rancher/mirrored-library-busybox",
+    platforms = ["linux/amd64"],
+    tag = "1.36.1",
+)
+use_repo(oci, "busybox_base", "busybox_base_linux_amd64", "busybox_rancher", "busybox_rancher_linux_amd64", "distroless_static", "distroless_static_linux_amd64", "k3s_base", "k3s_base_linux_amd64", "registry_image", "registry_image_linux_amd64")
+
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
+go_sdk.download(version = "1.24.1")
+use_repo(go_sdk, "go_toolchains")
+
+register_toolchains("@go_toolchains//:all")
+
+go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+go_deps.from_file(go_mod = "//:go.mod")
+use_repo(
+    go_deps,
+    "com_github_docker_docker",
+    "com_github_docker_go_connections",
+    "com_github_google_go_containerregistry",
+    "com_github_gorilla_websocket",
+    "com_github_spf13_cobra",
+    "com_github_spf13_viper",
+    "in_gopkg_yaml_v3",
+    "io_k8s_api",
+    "io_k8s_apimachinery",
+    "io_k8s_client_go",
+)

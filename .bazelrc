@@ -1,0 +1,36 @@
+# kube-parcel Bazel configuration
+# ================================
+
+# Common settings
+common --enable_bzlmod
+
+# ================================
+# Execution Mode Configurations
+# ================================
+# Toggle kube-parcel execution mode:
+#   bazel test --config=docker //...  # Local Docker mode (default)
+#   bazel test --config=k8s //...     # Kubernetes pod mode
+
+# Docker mode (default) - runs K3s in local Docker daemon
+build:docker --define=kube_parcel_exec_mode=docker
+
+# Kubernetes mode - runs K3s as a privileged pod in a K8s cluster
+build:k8s --define=kube_parcel_exec_mode=k8s
+
+# ================================
+# Test Configuration
+# ================================
+# Keep test containers alive on failure for debugging
+build:debug --define=kube_parcel_keep_alive=true
+
+# Disable airgap mode (allow external image pulls)
+build:online --define=kube_parcel_no_airgap=true
+
+# ================================
+# Platform Configuration
+# ================================
+# Force linux/amd64 for OCI images (K3s runner requirement)
+build --host_platform=@rules_go//go/toolchain:linux_amd64
+
+# Force Docker API version for tests (fixes "client version too old" errors)
+test --test_env=DOCKER_API_VERSION=1.44

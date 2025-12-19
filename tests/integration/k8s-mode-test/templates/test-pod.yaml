@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Release.Name }}-test
+  labels:
+    helm.sh/hook: test
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  serviceAccountName: {{ .Release.Name }}-client
+  restartPolicy: Never
+  volumes:
+    - name: inner-chart
+      configMap:
+        name: {{ .Release.Name }}-inner-chart
+  containers:
+    - name: client
+      image: "{{ .Values.runner.image }}:{{ .Values.runner.tag }}"
+      imagePullPolicy: {{ .Values.runner.pullPolicy }}
+      securityContext:
+        privileged: false
+      resources:
+        requests:
+          memory: "256Mi"
+          cpu: "100m"
+        limits:
+          memory: "1Gi"
+      volumeMounts:
+        - name: inner-chart
+          mountPath: /chart-data
+          readOnly: true
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║      kube-parcel K8s Mode Self-Test                          ║"
+          echo "║      Testing --exec-mode k8s with Service Communication      ║"
+          echo "╚══════════════════════════════════════════════════════════════╝"
+          echo ""
+          
+          # Step 1: Wait for in-cluster registry
+          echo "Step 1: Waiting for in-cluster registry..."
+          for i in $(seq 1 30); do
+            if wget -q -O /dev/null http://registry:5000/v2/ 2>/dev/null; then
+              echo "✅ Registry is ready!"
+              break
+            fi
+            echo "  Waiting... ($i/30)"
+            sleep 2
+          done
+          
+          # Step 2: Extract artifacts
+          echo "Step 2: Locating embedded artifacts..."
+          if [ -d /artifacts ]; then
+             echo "Found artifacts at /artifacts"
+             ls -la /artifacts
+             
+             # Direct paths based on Bazel target names
+             RUNNER_DIR="/artifacts/image"
+             BUSYBOX_DIR="/artifacts/busybox_image"
+             
+             if [ ! -d "$RUNNER_DIR" ]; then
+                echo "Warning: Direct path $RUNNER_DIR not found, searching..."
+                RUNNER_DIR=$(find /artifacts -name index.json | grep "/image/" | xargs dirname | head -n 1)
+             fi
+             if [ ! -d "$BUSYBOX_DIR" ]; then
+                echo "Warning: Direct path $BUSYBOX_DIR not found, searching..."
+                BUSYBOX_DIR=$(find /artifacts -name index.json | grep "/busybox_image/" | xargs dirname | head -n 1)
+             fi
+             
+             echo "Located Runner Dir: $RUNNER_DIR"
+             echo "Located Busybox Dir: $BUSYBOX_DIR"
+             
+             if [ -z "$RUNNER_DIR" ] || [ -z "$BUSYBOX_DIR" ]; then
+                echo "Error: Failed to locate required OCI artifacts"
+                find /artifacts
+                exit 1
+             fi
+          else
+             echo "Error: /artifacts directory not found!"
+             exit 1
+          fi
+          
+          # Step 3: Prepare inner chart from ConfigMap data
+          echo ""
+          
+          echo "Step 3: Preparing inner chart..."
+          mkdir -p /tmp/inner-chart/templates
+          
+          cp /chart-data/Chart.yaml /tmp/inner-chart/
+          cp /chart-data/server.yaml /tmp/inner-chart/templates/
+          cp /chart-data/test.yaml /tmp/inner-chart/templates/
+          
+          echo "Chart files:"
+          ls -la /tmp/inner-chart/
+          ls -la /tmp/inner-chart/templates/
+          
+          # Step 4: Run kube-parcel client in k8s mode
+          echo ""
+          echo "Step 4: Spawning Runner Pod with networking test..."
+          
+          /app/client start \
+            --exec-mode k8s \
+            --namespace {{ .Release.Namespace }} \
+            --runner-image {{ .Values.runner.image }}:{{ .Values.runner.tag }} \
+            --load-images "kube-parcel:latest=oci://$RUNNER_DIR" \
+            --load-images "docker.io/rancher/mirrored-library-busybox:1.36.1=oci://$BUSYBOX_DIR" \
+            /tmp/inner-chart
+          
+          EXIT_CODE=$?
+          
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo ""
+            echo "╔══════════════════════════════════════════════════════════════╗"
+            echo "║  ✅ K8S MODE TEST PASSED                                     ║"
+            echo "║     Service-to-Service communication verified!               ║"
+            echo "╚══════════════════════════════════════════════════════════════╝"
+          else
+            echo ""
+            echo "╔══════════════════════════════════════════════════════════════╗"
+            echo "║  ❌ K8S MODE TEST FAILED (exit: $EXIT_CODE)                   ║"
+            echo "╚══════════════════════════════════════════════════════════════╝"
+          fi
+          exit $EXIT_CODE

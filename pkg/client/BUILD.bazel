@@ -1,0 +1,32 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "client",
+    srcs = [
+        "bundle.go",
+        "launcher.go",
+        "transport.go",
+    ],
+    importpath = "github.com/tiborv/kube-parcel/pkg/client",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/config",
+        "//pkg/shared",
+        "@com_github_docker_docker//api/types/container",
+        "@com_github_docker_docker//client",
+        "@com_github_docker_go_connections//nat",
+        "@com_github_google_go_containerregistry//pkg/crane",
+        "@com_github_google_go_containerregistry//pkg/v1:pkg",
+        "@com_github_gorilla_websocket//:websocket",
+        "@in_gopkg_yaml_v3//:yaml_v3",
+        "@io_k8s_api//authorization/v1:authorization",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/api/resource",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/util/wait",
+        "@io_k8s_client_go//kubernetes",
+        "@io_k8s_client_go//rest",
+        "@io_k8s_client_go//tools/clientcmd",
+        "@io_k8s_client_go//util/homedir",
+    ],
+)

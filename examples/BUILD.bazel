@@ -1,0 +1,77 @@
+"Example Helm charts and kube-parcel test targets"
+
+load("//bazel:defs.bzl", "kube_parcel_test", "kube_parcel_test_suite")
+
+# ================================
+# Chart file groups
+# ================================
+# Export chart files so they can be used as test inputs
+
+filegroup(
+    name = "microservice_chart",
+    srcs = glob(["microservice/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "configmap_app_chart",
+    srcs = glob(["configmap-app/**"]),
+    visibility = ["//visibility:public"],
+)
+
+# ================================
+# Individual chart tests
+# ================================
+
+kube_parcel_test(
+    name = "microservice_test",
+    charts = [":microservice_chart"],
+    # No images needed - uses nginx:alpine from Docker Hub
+    # In a real scenario, you'd use oci_tarball targets here
+    no_airgap = True,  # Allow pulling nginx:alpine
+    runner_image = "//cmd/runner:load",
+    runner_tag = "kube-parcel:latest",
+)
+
+kube_parcel_test(
+    name = "configmap_app_test",
+    charts = [":configmap_app_chart"],
+    no_airgap = True,
+    runner_image = "//cmd/runner:load",
+    runner_tag = "kube-parcel:latest",
+)
+
+# ================================
+# Test with pre-built images
+# ================================
+# Example using oci_tarball targets (commented out as reference)
+#
+# load("@rules_oci//oci:defs.bzl", "oci_tarball")
+#
+# oci_tarball(
+#     name = "nginx_tarball",
+#     image = "@nginx_image//image",
+#     repo_tags = ["nginx:test"],
+# )
+#
+# kube_parcel_test(
+#     name = "airgapped_test",
+#     charts = [":microservice_chart"],
+#     images = [":nginx_tarball"],
+#     # no_airgap is False by default - fully airgapped
+# )
+
+# ================================
+# Test suite for all charts
+# ================================
+
+kube_parcel_test_suite(
+    name = "all_charts",
+    charts = [
+        ":microservice_chart",
+        ":configmap_app_chart",
+    ],
+    no_airgap = True,
+    runner_image = "//cmd/runner:load",
+    runner_tag = "kube-parcel:latest",
+)

@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ .Release.Name }}-test-connection
+  labels:
+    app: {{ .Release.Name }}-test
+  annotations:
+    "helm.sh/hook": test
+spec:
+  restartPolicy: Never
+  containers:
+    - name: curl
+      image: curlimages/curl:latest
+      imagePullPolicy: IfNotPresent
+      command:
+        - sh
+        - -c
+        - |
+          echo "Testing service discovery..."
+          for i in 1 2 3 4 5; do
+            if curl -s --max-time 5 http://{{ .Release.Name }}-svc:{{ .Values.service.port }}/ > /dev/null; then
+              echo "✅ Service responded successfully on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 2
+          done
+          echo "❌ Service did not respond after 5 attempts"
+          exit 1

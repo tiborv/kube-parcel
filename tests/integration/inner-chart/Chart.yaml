@@ -1,0 +1,4 @@
+apiVersion: v2
+name: inner-chart
+version: 0.1.0
+description: Tests service-to-service communication in nested K3s

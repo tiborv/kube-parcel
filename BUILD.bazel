@@ -1,0 +1,22 @@
+load("@gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/tiborv/kube-parcel
+# gazelle:proto disable_global
+gazelle(name = "gazelle")
+
+gazelle(
+    name = "gazelle-update-repos",
+    args = [
+        "-from_file=go.mod",
+        "-to_macro=deps.bzl%go_dependencies",
+        "-prune",
+    ],
+    command = "update-repos",
+)
+
+genrule(
+    name = "copy_airgap_images",
+    srcs = ["@k3s_airgap_images//file"],
+    outs = ["k3s-airgap-images.tar.gz"],
+    cmd = "cp $< $@",
+)

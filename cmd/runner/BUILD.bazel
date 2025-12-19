@@ -1,0 +1,127 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@tar.bzl", "mtree_mutate", "mtree_spec", "tar")
+
+go_library(
+    name = "runner_lib",
+    srcs = ["main.go"],
+    embedsrcs = ["ui/index.html"],
+    importpath = "github.com/tiborv/kube-parcel/cmd/runner",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/config",
+        "//pkg/runner",
+    ],
+)
+
+go_binary(
+    name = "runner",
+    embed = [":runner_lib"],
+    pure = "on",
+    visibility = ["//visibility:public"],
+)
+
+# Runner binary layer - strip bazel paths, put in /app
+mtree_spec(
+    name = "runner_mtree",
+    srcs = [":runner"],
+    include_runfiles = False,
+)
+
+mtree_mutate(
+    name = "runner_mtree_mutated",
+    mtree = ":runner_mtree",
+    package_dir = "/app",
+    strip_prefix = "cmd/runner/runner_",
+)
+
+tar(
+    name = "runner_layer",
+    srcs = [":runner"],
+    mtree = ":runner_mtree_mutated",
+)
+
+# Helm binary layer
+mtree_spec(
+    name = "helm_mtree",
+    srcs = ["@helm_binary//:helm"],
+    include_runfiles = False,
+)
+
+mtree_mutate(
+    name = "helm_mtree_mutated",
+    mtree = ":helm_mtree",
+    package_dir = "/bin",
+)
+
+tar(
+    name = "helm_layer",
+    srcs = ["@helm_binary//:helm"],
+    mtree = ":helm_mtree_mutated",
+)
+
+# Client binary layer for in-cluster testing
+mtree_spec(
+    name = "client_mtree",
+    srcs = ["//cmd/client"],
+    include_runfiles = False,
+)
+
+mtree_mutate(
+    name = "client_mtree_mutated",
+    mtree = ":client_mtree",
+    package_dir = "/app",
+    strip_prefix = "cmd/client/client_",
+)
+
+tar(
+    name = "client_layer",
+    srcs = ["//cmd/client"],
+    mtree = ":client_mtree_mutated",
+)
+
+# Airgap images layer - must strip 'file' prefix from http_file
+mtree_spec(
+    name = "k3s_images_mtree",
+    srcs = ["@k3s_airgap_images//file"],
+    include_runfiles = False,
+)
+
+mtree_mutate(
+    name = "k3s_images_mtree_mutated",
+    mtree = ":k3s_images_mtree",
+    package_dir = "/var/lib/rancher/k3s/agent/images",
+    strip_prefix = "file",
+)
+
+tar(
+    name = "k3s_images_layer",
+    srcs = ["@k3s_airgap_images//file"],
+    mtree = ":k3s_images_mtree_mutated",
+)
+
+oci_image(
+    name = "image",
+    base = "@k3s_base",
+    tars = [
+        ":runner_layer",
+        ":helm_layer",
+        ":client_layer",
+        ":k3s_images_layer",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+oci_load(
+    name = "load",
+    image = ":image",
+    repo_tags = ["kube-parcel:latest"],
+    visibility = ["//visibility:public"],
+)
+
+oci_push(
+    name = "push",
+    image = ":image",
+    repository = "ghcr.io/tiborv/kube-parcel",
+    visibility = ["//visibility:public"],
+)

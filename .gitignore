@@ -1,0 +1,24 @@
+# Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+*.test
+*.out
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Kube-parcel specific
+*.tar
+*.tar.gz
+
+# Bazel
+bazel-*
+MODULE.bazel.lock

@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Bazel
+        uses: bazel-contrib/setup-bazel@0.8.5
+        with:
+          bazelisk-cache: true
+          disk-cache: true
+          repository-cache: true
+
+      - name: Run unit tests
+        run: bazel test //...
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up Bazel
+        uses: bazel-contrib/setup-bazel@0.8.5
+        with:
+          bazelisk-cache: true
+          disk-cache: true
+          repository-cache: true
+
+      - name: Run integration tests
+        run: bazel run //tests/integration:k8s_mode_test
+        env:
+          DOCKER_API_VERSION: "1.44"
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            bazel-testlogs/
+            *.log

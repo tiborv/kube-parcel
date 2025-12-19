@@ -1,0 +1,5 @@
+appName: my-app
+config:
+  database_url: "postgres://db:5432/mydb"
+  log_level: "info"
+  feature_flags: "new-ui,metrics"

@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "shared",
+    srcs = ["types.go"],
+    importpath = "github.com/tiborv/kube-parcel/pkg/shared",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "shared_test",
+    srcs = ["types_test.go"],
+    embed = [":shared"],
+)

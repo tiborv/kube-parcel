@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appName }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.appName }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appName }}
+    spec:
+      containers:
+        - name: app
+          image: busybox:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "echo 'App running with config:' && env | grep -E '^(DATABASE|LOG|FEATURE)' && sleep 3600"]
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.appName }}-config

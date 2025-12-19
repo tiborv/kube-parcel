@@ -1,0 +1,86 @@
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@tar.bzl", "mtree_mutate", "mtree_spec", "tar")
+
+# Registry image for k8s-mode-test
+oci_image(
+    name = "registry_image",
+    base = "@registry_image_linux_amd64",
+    visibility = ["//visibility:public"],
+)
+
+# Busybox image for inner chart
+oci_image(
+    name = "busybox_image",
+    base = "@busybox_rancher_linux_amd64",
+    visibility = ["//visibility:public"],
+)
+
+# Package artifacts into a layer (using OCI directories directly)
+mtree_spec(
+    name = "artifacts_mtree",
+    srcs = [
+        ":busybox_image",
+        "//cmd/runner:image",
+    ],
+)
+
+mtree_mutate(
+    name = "artifacts_mtree_mutated",
+    mtree = ":artifacts_mtree",
+    package_dir = "/artifacts",
+)
+
+tar(
+    name = "artifacts_layer",
+    srcs = [
+        ":busybox_image",
+        "//cmd/runner:image",
+    ],
+    mtree = ":artifacts_mtree_mutated",
+)
+
+# Custom Test Runner Image containing the artifacts
+oci_image(
+    name = "test_runner_image",
+    base = "//cmd/runner:image",
+    tars = [":artifacts_layer"],
+    visibility = ["//visibility:public"],
+)
+
+# Load test runner image into Docker
+oci_load(
+    name = "test_runner_load",
+    image = ":test_runner_image",
+    repo_tags = ["test-runner:latest"],
+)
+
+# Export k8s-mode-test chart files
+filegroup(
+    name = "k8s_mode_test_chart",
+    srcs = glob(["k8s-mode-test/**"]),
+    visibility = ["//visibility:public"],
+)
+
+# Inner chart for nested K3s communication test
+filegroup(
+    name = "inner_chart",
+    srcs = glob(["inner-chart/**"]),
+    visibility = ["//visibility:public"],
+)
+
+# Integration test that runs k8s-mode-test
+# This spawns K3s in Docker, deploys the test chart, and validates nested K3s spawning
+sh_binary(
+    name = "k8s_mode_test",
+    srcs = ["run_k8s_mode_test.sh"],
+    data = [
+        ":k8s_mode_test_chart",
+        ":registry_image",
+        ":test_runner_image",
+        ":test_runner_load",
+        "//cmd/client",
+    ],
+    visibility = ["//visibility:public"],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
+)
